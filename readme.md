@@ -268,7 +268,7 @@ This modification ensures the lockscreen updates without requiring a reboot.
 .end method
 ```
 
-The finally just copy the whole system folder int your system partition for the libs, init.rc, and face models
+Then finally just copy the whole system folder into your system partition for the libs, init.rc, and face models
 ---
 ## 📜 Credits and Contributions
 - [**UniversalAuth**](https://github.com/null-dev/UniversalAuth)
