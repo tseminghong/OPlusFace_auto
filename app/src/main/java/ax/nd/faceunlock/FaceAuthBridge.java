@@ -10,7 +10,7 @@ import ax.nd.faceunlock.vendor.FacePPImpl;
 import ax.nd.faceunlock.camera.CameraFaceEnrollController;
 import ax.nd.faceunlock.camera.CameraFaceAuthController;
 import ax.nd.faceunlock.camera.CameraService;
-import ax.nd.faceunlock.util.Util; // Added Import for Util
+import ax.nd.faceunlock.util.Util; 
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -59,8 +59,11 @@ public class FaceAuthBridge {
         if (sInstance == null) {
             try {
                 sInstance = new FaceAuthBridge(context);
-                sInstance.mFacePP.init();
-            } catch (Throwable t) {}
+                sInstance.mFacePP.init(); 
+                // Boot latch is now handled inside FacePPImpl.init()
+            } catch (Throwable t) {
+                Log.e(TAG, "Failed to init FaceAuthBridge", t);
+            }
         }
     }
 
@@ -295,19 +298,14 @@ public class FaceAuthBridge {
         } catch (Exception e) {}
     }
 
-    // CRITICAL FIX: UNWRAP CONVERTER
     private void notifyAuthenticated(Object receiver, int deviceId, int faceId, int userId) {
         try {
             Class<?> faceClass = Class.forName("android.hardware.face.Face");
             java.lang.reflect.Constructor<?> ctor = faceClass.getConstructor(CharSequence.class, int.class, long.class);
             Object faceObj = ctor.newInstance("", faceId, (long)deviceId);
-            
             Object targetReceiver = receiver;
-
-            // SMART UNWRAP: Extract inner receiver from Wrapper/Converter
             if (receiver.getClass().getName().contains("ClientMonitorCallbackConverter") || 
                 receiver.getClass().getName().contains("Wrapper")) {
-                
                 try {
                     Field[] fields = receiver.getClass().getDeclaredFields();
                     for (Field f : fields) {
@@ -323,23 +321,17 @@ public class FaceAuthBridge {
                     Log.w(TAG, "Failed to unwrap receiver", ex);
                 }
             }
-
-            // Now call on the (hopefully) unwrapped AIDL proxy
             try {
                 Method m = targetReceiver.getClass().getMethod("onAuthenticationSucceeded", faceClass, int.class, boolean.class);
                 m.invoke(targetReceiver, faceObj, userId, true);
-                Log.d(TAG, "Invoked onAuthenticationSucceeded successfully");
             } catch (NoSuchMethodException e) {
-                // Fallback: Try byte[] signature if boolean fails (unlikely for AIDL Proxy but good safety)
                 try {
                     Method m = targetReceiver.getClass().getMethod("onAuthenticationSucceeded", faceClass, int.class, byte[].class);
                     m.invoke(targetReceiver, faceObj, userId, new byte[0]);
-                    Log.d(TAG, "Invoked onAuthenticationSucceeded (byte[])");
                 } catch (Exception ex2) {
                     Log.e(TAG, "FATAL: Could not find method on receiver: " + targetReceiver.getClass().getName());
                 }
             }
-
         } catch (Exception e) {
             Log.e(TAG, "Notify Auth Failed", e);
         }
@@ -354,8 +346,7 @@ public class FaceAuthBridge {
 
     /**
      * Updates persist.sys.oplus.isFaceEnrolled system property.
-     * 1 = Enrolled
-     * 0 = Not Enrolled / Removed
+     * 1 = Enrolled, 0 = Not Enrolled
      */
     private void notifySystemUIonFaceChanged(boolean isEnrolled) {
         String val = isEnrolled ? "1" : "0";
