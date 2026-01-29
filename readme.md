@@ -1,22 +1,9 @@
 # OPlusFace Unlock Guide
 
 Follow this guide below for manual patch or follow or follow [this guide](AUTOPATCH/README.md) for auto patch with script by Danda420
-This will guide you to patch precompiled services.jar to implement Motorola Face Unlock
+This will guide you to patch precompiled services.jar to implement Motorola Face Unlock to Oplus Services
 
 Credits me or this repo when use or helped your work. Days were spent figuring out and debugging crashes for this method respect my works.
-
----
-
-## ⚠️ Prerequisites
-
-- **Face Unlock HALs**  
-  Ensure your vendor partition contains the necessary Face Unlock HALs.
-
-- **Compatibility**  
-  This method is untested on devices or vendors without existing Face Unlock HALs.
-  ```md
-  If your device vendor does not have a FaceHAL try implementing AOSP FaceHAL or Fork this repo and adjust accordingly.
-  ```
 
 ---
 
@@ -24,28 +11,79 @@ Credits me or this repo when use or helped your work. Days were spent figuring o
 
 ### 1. Initialize the Bridge
 
-Open `services.jar` and locate the `FaceProvider` class. Find the `initSensors` method.
+Open `services.jar` and locate the `com.android.server.biometrics.sensors.face.FaceService` class. Find the `getDeclaredInstances` method and replace with this method.
 
-**Action:** Add the following code after the `.registers` and `.param` directives:
+```
+.method public static getDeclaredInstances()[Ljava/lang/String;
+    .registers 3
 
-```smali
-iget-object v0, p0, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;->mContext:Landroid/content/Context;
-invoke-static {v0}, Lax/nd/faceunlock/FaceAuthBridge;->init(Landroid/content/Context;)V
+    const/4 v0, 0x1
+
+    new-array v0, v0, [Ljava/lang/String;
+
+    const-string v1, "default"
+
+    const/4 v2, 0x0
+
+    aput-object v1, v0, v2
+
+    return-object v0
+.end method
 ```
 
-**Example Context:**
+Then locate the `FaceProvider` class. Find the `initSensors` method.
 
+Patch the whole method with this
 ```smali
 .method private initSensors(Z[Landroid/hardware/biometrics/face/SensorProps;)V
-    .registers 11
-    .param p1, "resetLockoutRequiresChallenge"  # Z
-    .param p2, "props"  # [Landroid/hardware/biometrics/face/SensorProps;
-
-    .line 239
+    .registers 12
 
     iget-object v0, p0, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;->mContext:Landroid/content/Context;
+
     invoke-static {v0}, Lax/nd/faceunlock/FaceAuthBridge;->init(Landroid/content/Context;)V
-    # rest of the method...
+
+    new-instance v0, Landroid/hardware/biometrics/face/SensorProps;
+
+    invoke-direct {v0}, Landroid/hardware/biometrics/face/SensorProps;-><init>()V
+
+    new-instance v1, Landroid/hardware/biometrics/common/CommonProps;
+
+    invoke-direct {v1}, Landroid/hardware/biometrics/common/CommonProps;-><init>()V
+
+    const/4 v2, 0x1
+
+    iput v2, v1, Landroid/hardware/biometrics/common/CommonProps;->sensorId:I
+
+    iput-object v1, v0, Landroid/hardware/biometrics/face/SensorProps;->commonProps:Landroid/hardware/biometrics/common/CommonProps;
+
+    const/4 v1, 0x0
+
+    invoke-direct {p0, v0, v1}, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;->addAidlSensors(Landroid/hardware/biometrics/face/SensorProps;Z)V
+
+    invoke-static {}, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;->getExtImpl()Lcom/android/server/biometrics/sensors/face/aidl/IFaceProviderExt;
+
+    move-result-object v2
+
+    move-object v3, p0
+
+    iget-object v4, p0, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;->mContext:Landroid/content/Context;
+
+    const/4 v1, 0x1
+
+    new-array v5, v1, [Landroid/hardware/biometrics/face/SensorProps;
+
+    const/4 v1, 0x0
+
+    aput-object v0, v5, v1
+
+    iget-object v6, p0, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;->mHalInstanceName:Ljava/lang/String;
+
+    iget-object v7, p0, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;->mHandler:Landroid/os/Handler;
+
+    invoke-interface/range {v2 .. v7}, Lcom/android/server/biometrics/sensors/face/aidl/IFaceProviderExt;->init(Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;Landroid/content/Context;[Landroid/hardware/biometrics/face/SensorProps;Ljava/lang/String;Landroid/os/Handler;)V
+
+    return-void
+.end method
 ```
 
 ---
@@ -56,6 +94,174 @@ Search for the following methods in `FaceProvider` class and replace the **entir
 
 #### Patched Methods
 
+```
+.method private synthetic lambda$new$2(Ljava/lang/String;)Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;
+    .registers 16
+    .param p1, "name"  # Ljava/lang/String;
+
+    .line 861
+    new-instance v0, Ljava/lang/StringBuilder;
+
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+
+    sget-object v1, Landroid/hardware/biometrics/face/IFace;->DESCRIPTOR:Ljava/lang/String;
+
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v0
+
+    const-string v1, "/"
+
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v0
+
+    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v0
+
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 862
+    .local v1, "fqName":Ljava/lang/String;
+    invoke-static {v1}, Landroid/hardware/face/FaceSensorConfigurations;->getIFace(Ljava/lang/String;)Landroid/hardware/biometrics/face/IFace;
+
+    move-result-object v2
+
+    .line 863
+    .local v2, "face":Landroid/hardware/biometrics/face/IFace;
+    const/4 v3, 0x0
+
+    const-string v4, "FaceService"
+
+    if-nez v2, :cond_4e
+
+    new-instance v0, Ljava/lang/StringBuilder;
+
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+
+    const-string v5, "Unable to get declared service, using fake props: "
+
+    invoke-virtual {v0, v5}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v0
+
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v0
+
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+
+    move-result-object v0
+
+    invoke-static {v4, v0}, Landroid/util/Slog;->e(Ljava/lang/String;Ljava/lang/String;)I
+
+    new-instance v13, Landroid/hardware/biometrics/face/SensorProps;
+
+    invoke-direct {v13}, Landroid/hardware/biometrics/face/SensorProps;-><init>()V
+
+    new-instance v0, Landroid/hardware/biometrics/common/CommonProps;
+
+    invoke-direct {v0}, Landroid/hardware/biometrics/common/CommonProps;-><init>()V
+
+    const/4 v11, 0x1
+
+    iput v11, v0, Landroid/hardware/biometrics/common/CommonProps;->sensorId:I
+
+    iput-object v0, v13, Landroid/hardware/biometrics/face/SensorProps;->commonProps:Landroid/hardware/biometrics/common/CommonProps;
+
+    const/4 v10, 0x1
+
+    new-array v9, v10, [Landroid/hardware/biometrics/face/SensorProps;
+
+    const/4 v10, 0x0
+
+    aput-object v13, v9, v10
+
+    goto :goto_6c
+
+    :cond_4e
+    :try_start_4e
+    invoke-interface {v2}, Landroid/hardware/biometrics/face/IFace;->getSensorProps()[Landroid/hardware/biometrics/face/SensorProps;
+
+    move-result-object v0
+
+    move-object v9, v0
+    :try_end_53
+    .catch Landroid/os/RemoteException; {:try_start_4e .. :try_end_53} :catch_54
+
+    goto :goto_6c
+
+    :catch_54
+    move-exception v0
+
+    new-instance v5, Ljava/lang/StringBuilder;
+
+    invoke-direct {v5}, Ljava/lang/StringBuilder;-><init>()V
+
+    const-string v6, "Remote exception: "
+
+    invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v5
+
+    invoke-virtual {v5, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v5
+
+    invoke-virtual {v5}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+
+    move-result-object v5
+
+    invoke-static {v4, v5}, Landroid/util/Slog;->e(Ljava/lang/String;Ljava/lang/String;)I
+
+    return-object v3
+
+    .local v9, "props":[Landroid/hardware/biometrics/face/SensorProps;
+    :goto_6c
+    :try_start_6c
+    new-instance v5, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;
+
+    invoke-virtual {p0}, Lcom/android/server/biometrics/sensors/face/FaceService;->getContext()Landroid/content/Context;
+
+    move-result-object v6
+    
+    iget-object v7, p0, Lcom/android/server/biometrics/sensors/face/FaceService;->mBiometricStateCallback:Lcom/android/server/biometrics/sensors/BiometricStateCallback;
+    
+    iget-object v8, p0, Lcom/android/server/biometrics/sensors/face/FaceService;->mAuthenticationStateListeners:Lcom/android/server/biometrics/sensors/AuthenticationStateListeners;
+
+    iget-object v11, p0, Lcom/android/server/biometrics/sensors/face/FaceService;->mLockoutResetDispatcher:Lcom/android/server/biometrics/sensors/LockoutResetDispatcher;
+
+    invoke-virtual {p0}, Lcom/android/server/biometrics/sensors/face/FaceService;->getContext()Landroid/content/Context;
+
+    move-result-object v0
+
+    invoke-static {v0}, Lcom/android/server/biometrics/log/BiometricContext;->getInstance(Landroid/content/Context;)Lcom/android/server/biometrics/log/BiometricContext;
+
+    move-result-object v12
+
+    const/4 v13, 0x0
+
+    move-object v10, p1
+
+    invoke-direct/range {v5 .. v13}, Lcom/android/server/biometrics/sensors/face/aidl/FaceProvider;-><init>(Landroid/content/Context;Lcom/android/server/biometrics/sensors/BiometricStateCallback;Lcom/android/server/biometrics/sensors/AuthenticationStateListeners;[Landroid/hardware/biometrics/face/SensorProps;Ljava/lang/String;Lcom/android/server/biometrics/sensors/LockoutResetDispatcher;Lcom/android/server/biometrics/log/BiometricContext;Z)V
+    :try_end_85
+    .catch Landroid/os/RemoteException; {:try_start_6c .. :try_end_85} :catch_86
+
+    return-object v5
+
+    :catch_86
+    move-exception v0
+
+    const-string v5, "Remote exception during init"
+
+    invoke-static {v4, v5}, Landroid/util/Slog;->e(Ljava/lang/String;Ljava/lang/String;)I
+
+    return-object v3
+.end method
+```
 ```smali
 .method public cancelAuthentication(ILandroid/os/IBinder;J)V
     .registers 8
@@ -271,9 +477,10 @@ This modification ensures the lockscreen updates without requiring a reboot.
 Then finally just copy the whole system folder into your system partition for the libs, init.rc, and face models
 ---
 ## 📜 Credits and Contributions
-- [**UniversalAuth**](https://github.com/null-dev/UniversalAuth)
 - [**ryanistr** ](https://github.com/ryanistr)
-- **Motorola**
 - [**Danda420**](https://github.com/Danda420)
+--[**LazyBones**](https://www.coolapk.com/)
+- **Motorola**
+- [**UniversalAuth**](https://github.com/null-dev/UniversalAuth)
 ---
-# Enjoy.
+## Enjoy.
