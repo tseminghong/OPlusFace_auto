@@ -479,7 +479,7 @@ Then finally just copy the whole system folder into your system partition for th
 ## 📜 Credits and Contributions
 - [**ryanistr** ](https://github.com/ryanistr)
 - [**Danda420**](https://github.com/Danda420)
---[**LazyBones**](https://www.coolapk.com/)
+- [**LazyBones**](https://www.coolapk.com/)
 - **Motorola**
 - [**UniversalAuth**](https://github.com/null-dev/UniversalAuth)
 ---
