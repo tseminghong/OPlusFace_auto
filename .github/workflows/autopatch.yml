@@ -1,0 +1,111 @@
+name: autopatch-faceunlock
+
+on:
+  workflow_dispatch:
+    inputs:
+      services_jar:
+        description: "Path to services.jar in the repo"
+        required: false
+        type: string
+      services_jar_url:
+        description: "Direct URL to download services.jar"
+        required: false
+        type: string
+      systemui_apk:
+        description: "Path to SystemUI.apk in the repo"
+        required: false
+        type: string
+      systemui_apk_url:
+        description: "Direct URL to download SystemUI.apk"
+        required: false
+        type: string
+      debug:
+        description: "Enable debug logs (.debug)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install build-tools and tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip
+          sdkmanager "build-tools;34.0.0"
+          echo "${ANDROID_SDK_ROOT}/build-tools/34.0.0" >> $GITHUB_PATH
+
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ inputs.services_jar }}" ] && [ -z "${{ inputs.services_jar_url }}" ] && [ -z "${{ inputs.systemui_apk }}" ] && [ -z "${{ inputs.systemui_apk_url }}" ]; then
+            echo "Provide at least one input: services_jar, services_jar_url, systemui_apk, or systemui_apk_url."
+            exit 1
+          fi
+
+      - name: Patch files
+        run: |
+          set -euo pipefail
+          repo_root="$GITHUB_WORKSPACE"
+          work_dir="$repo_root/AUTOPATCH/work"
+          out_dir="$repo_root/AUTOPATCH/out"
+
+          mkdir -p "$work_dir" "$out_dir"
+
+          if [ -n "${{ inputs.services_jar_url }}" ]; then
+            curl -L "${{ inputs.services_jar_url }}" -o "$work_dir/services.jar"
+          elif [ -n "${{ inputs.services_jar }}" ]; then
+            if [ ! -f "$repo_root/${{ inputs.services_jar }}" ]; then
+              echo "services.jar not found at $repo_root/${{ inputs.services_jar }}"
+              exit 1
+            fi
+            cp "$repo_root/${{ inputs.services_jar }}" "$work_dir/services.jar"
+          fi
+
+          if [ -n "${{ inputs.systemui_apk_url }}" ]; then
+            curl -L "${{ inputs.systemui_apk_url }}" -o "$work_dir/SystemUI.apk"
+          elif [ -n "${{ inputs.systemui_apk }}" ]; then
+            if [ ! -f "$repo_root/${{ inputs.systemui_apk }}" ]; then
+              echo "SystemUI.apk not found at $repo_root/${{ inputs.systemui_apk }}"
+              exit 1
+            fi
+            cp "$repo_root/${{ inputs.systemui_apk }}" "$work_dir/SystemUI.apk"
+          fi
+
+          cd "$repo_root/AUTOPATCH"
+          chmod +x patchFU
+
+          if [ "${{ inputs.debug }}" = "true" ]; then
+            touch .debug
+          fi
+
+          if [ -f "$work_dir/services.jar" ]; then
+            ./patchFU -j "$work_dir/services.jar"
+            cp "$work_dir/services.jar" "$out_dir/services.jar"
+          fi
+
+          if [ -f "$work_dir/SystemUI.apk" ]; then
+            ./patchFU -a "$work_dir/SystemUI.apk"
+            cp "$work_dir/SystemUI.apk" "$out_dir/SystemUI.apk"
+          fi
+
+      - name: Upload patched artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: patched-files
+          path: AUTOPATCH/out/*
+          if-no-files-found: error
