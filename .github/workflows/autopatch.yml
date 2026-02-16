@@ -7,6 +7,7 @@ on:
         description: "Path to services.jar in the repo"
         required: false
         type: string
+        default: "input/services.jar"
       services_jar_url:
         description: "Direct URL to download services.jar"
         required: false
@@ -15,6 +16,7 @@ on:
         description: "Path to SystemUI.apk in the repo"
         required: false
         type: string
+        default: "input/SystemUI.apk"
       systemui_apk_url:
         description: "Direct URL to download SystemUI.apk"
         required: false
