@@ -67,7 +67,7 @@ jobs:
           mkdir -p "$work_dir" "$out_dir"
 
           if [ -n "${{ inputs.services_jar_url }}" ]; then
-            curl -L "${{ inputs.services_jar_url }}" -o "$work_dir/services.jar"
+            curl -fL --retry 3 --retry-delay 2 "${{ inputs.services_jar_url }}" -o "$work_dir/services.jar"
           elif [ -n "${{ inputs.services_jar }}" ]; then
             if [ ! -f "$repo_root/${{ inputs.services_jar }}" ]; then
               echo "services.jar not found at $repo_root/${{ inputs.services_jar }}"
@@ -77,13 +77,27 @@ jobs:
           fi
 
           if [ -n "${{ inputs.systemui_apk_url }}" ]; then
-            curl -L "${{ inputs.systemui_apk_url }}" -o "$work_dir/SystemUI.apk"
+            curl -fL --retry 3 --retry-delay 2 "${{ inputs.systemui_apk_url }}" -o "$work_dir/SystemUI.apk"
           elif [ -n "${{ inputs.systemui_apk }}" ]; then
             if [ ! -f "$repo_root/${{ inputs.systemui_apk }}" ]; then
               echo "SystemUI.apk not found at $repo_root/${{ inputs.systemui_apk }}"
               exit 1
             fi
             cp "$repo_root/${{ inputs.systemui_apk }}" "$work_dir/SystemUI.apk"
+          fi
+
+          if [ -f "$work_dir/services.jar" ]; then
+            if ! unzip -tq "$work_dir/services.jar" >/dev/null; then
+              echo "services.jar is not a valid zip/jar. Check the URL/path."
+              exit 1
+            fi
+          fi
+
+          if [ -f "$work_dir/SystemUI.apk" ]; then
+            if ! unzip -tq "$work_dir/SystemUI.apk" >/dev/null; then
+              echo "SystemUI.apk is not a valid zip/apk. Check the URL/path."
+              exit 1
+            fi
           fi
 
           cd "$repo_root/AUTOPATCH"
